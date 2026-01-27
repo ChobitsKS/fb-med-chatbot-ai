@@ -33,11 +33,10 @@ ${contextText}
 
 กฎเหล็กในการตอบ:
 1. ตอบคำถามโดยใช้ข้อมูลจาก "ข้อมูลอ้างอิง" เท่านั้น
-2. ห้ามเดา ห้ามสร้างข้อมูลใหม่ ห้ามสมมติเองเด็ดขาด
-3. ถ้าข้อมูลใน "ข้อมูลอ้างอิง" ไม่เพียงพอที่จะตอบคำถาม หรือไม่ตรงกับคำถาม ให้ตอบด้วยข้อความนี้เป๊ะๆ ห้ามแก้ไข: "ขออภัย ข้อมูลส่วนนี้ยังไม่พร้อม สามารถทิ้งข้อความไว้ได้เลยค่ะ"
-4. ภาษาที่ใช้ต้องเป็นกันเอง สุภาพ อบอุ่น เหมือนพี่สาวแนะนำน้อง ไม่ใช้ภาษาราชการจ๋าเกินไป
-5. ตอบให้กระชับ ได้ใจความ
-`;
+2. ห้ามเดาข้อมูลตัวเลขหรือข้อเท็จจริงใหม่ แต่ "อนุญาตให้เชื่อมโยงความสัมพันธ์" ได้ เช่น ถ้าลูกค้าถามหา "เบอร์" และในข้อมูลมี "เบอร์โทรศัพท์" ให้ถือว่าเป็นเรื่องเดียวกัน
+3. ถ้าข้อมูลใน "ข้อมูลอ้างอิง" ไม่เพียงพอที่จะตอบคำถาม ให้ตอบด้วยข้อความนี้เป๊ะๆ: "ขออภัย ไม่มีข้อมูลในส่วนนี้ ฝากข้อความไว้ได้เลยค่ะ"
+4. ภาษาที่ใช้ต้องเป็นกันเอง สุภาพ อบอุ่น เหมือนพี่สาวแนะนำน้อง
+5. ตอบให้กระชับ ได้ใจความ`;
 
         const completion = await groq.chat.completions.create({
             messages: [
@@ -59,11 +58,52 @@ ${contextText}
 
     } catch (error) {
         console.error('Error in AI Generation:', error);
-        return 'ขออภัย ระบบขัดข้องชั่วคราว ลองถามใหม่ในอีกสักครู่นะคะ';
+        return 'ขออภัย มีผู้ใช้งานจำนวนมาก ลองถามใหม่อีกสักครู่ค่ะ';
+    }
+};
+
+/**
+ * Expand user query into multiple related keywords for better search
+ * @param {string} userQuery
+ * @returns {Promise<string>}
+ */
+const expandSearchQuery = async (userQuery) => {
+    try {
+        const completion = await groq.chat.completions.create({
+            messages: [
+                {
+                    role: 'system',
+                    content: `You are a Keyword Extractor for a Medical School Chatbot.
+Task: Convert the user's input into a list of 5 RELEVANT synonyms or related nouns in Thai/English.
+Rules:
+1. FOCUS on the "Object" or "Topic" (e.g., "หอใน" -> "หอพัก หอพักนักศึกษา dormitory accommodation ที่พัก").
+2. DO NOT include generic action verbs like "สอบถาม", "ติดต่อ", "Enquire" unless the user specifically asks to contact.
+3. DO NOT force a connection if the query is unrelated to school administration (e.g. "Hungry", "Bored" should NOT -> "Map").
+4. If the query implies a need for location (e.g. "Where to eat"), you MAY include "canteen" or "location", but NOT just "Map".
+5. Output ONLY the space-separated keywords.`
+                },
+                {
+                    role: 'user',
+                    content: userQuery
+                }
+            ],
+            model: 'llama-3.3-70b-versatile',
+            temperature: 0.3,
+            max_tokens: 100,
+        });
+
+        const expanded = completion.choices[0]?.message?.content?.trim();
+        console.log(`[AI Expansion] "${userQuery}" -> "${expanded}"`);
+        return expanded || userQuery;
+
+    } catch (error) {
+        console.error('Error in Query Expansion:', error);
+        return userQuery; // Fallback to original
     }
 };
 
 module.exports = {
     classifyCategory,
-    generateAnswer
+    generateAnswer,
+    expandSearchQuery
 };
