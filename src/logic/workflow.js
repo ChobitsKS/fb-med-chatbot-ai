@@ -79,7 +79,7 @@ const processMessage = async (senderId, messageText) => {
                         contentSent = true;
                     } catch (e) {
                         console.error('[Workflow] Error parsing Menu JSON:', e);
-                        await fbService.sendMessage(senderId, "(ขออภัย รูปแบบเมนูไม่ถูกต้อง - กรุณาติดต่อแอดมิน)");
+                        await fbService.sendMessage(senderId, "(ขออภัย รูปแบบเมนูไม่ถูกต้อง กรุณาติดต่อเจ้าหน้าที่ค่ะ)");
                         contentSent = true; // Error msg IS content
                     }
                 }
@@ -97,7 +97,7 @@ const processMessage = async (senderId, messageText) => {
                         contentSent = true;
                     } catch (e) {
                         console.error('[Workflow] Error parsing Carousel JSON:', e);
-                        await fbService.sendMessage(senderId, "(ขออภัย รูปแบบ Carousel ไม่ถูกต้อง - กรุณาติดต่อแอดมิน)");
+                        await fbService.sendMessage(senderId, "(ขออภัย รูปแบบ Carousel ไม่ถูกต้อง - กรุณาติดต่อเจ้าหน้าที่)");
                         contentSent = true;
                     }
                 }
@@ -105,7 +105,7 @@ const processMessage = async (senderId, messageText) => {
 
             if (!contentSent) {
                 console.warn('[Workflow] Match found but NO content sent (empty answer/media?). Sending fallback.');
-                await fbService.sendMessage(senderId, "พบข้อมูลแต่ไม่สามารถแสดงผลได้ (ข้อมูลอาจว่าง) กรุณาติดต่อแอดมินค่ะ");
+                await fbService.sendMessage(senderId, "ขออภัย พบข้อมูลแต่ไม่สามารถแสดงผลได้ - กรุณาติดต่อเจ้าหน้าที่ค่ะ");
             }
             return; // จบการทำงานทันที
         }
@@ -121,24 +121,20 @@ const processMessage = async (senderId, messageText) => {
         const contextRows = await sheetService.searchSheet(category, expandedQuery);
         console.log(`[Workflow] พบข้อมูลบริบทที่เกี่ยวข้อง: ${contextRows.length} แถว`);
 
-        // 4.3 ตอบกลับด้วย AI (Synthesized Answer)
+        // 4.3 ตอบกลับทันที (ไม่ใช้ AI เรียบเรียงใหม่แล้ว เพื่อประหยัด Token)
         if (contextRows.length > 0) {
-            console.log(`[Workflow] พบข้อมูล ${contextRows.length} แถว -> ส่งให้ AI สรุปคำตอบ`);
-
-            // เรียกใช้ AI โดยส่งข้อมูลที่เจอทั้งหมดเข้าไปเป็น Context
-            const aiResponse = await aiService.generateAnswer(messageText, contextRows);
-            await fbService.sendMessage(senderId, aiResponse);
-
-            // ถ้าแถวแรก (ที่ตรงที่สุด) มีรูปภาพ ก็ส่งรูปตามไปประกอบครับ
+            // เอาอันที่คะแนนสูงสุด (ตัวแรก) มาตอบเลย
             const bestMatch = contextRows[0];
+            console.log(`[Workflow] ตอบด้วยข้อมูลจาก Sheet ทันที: "${bestMatch.answer}"`);
+            await fbService.sendMessage(senderId, bestMatch.answer);
+
+            // ถ้ามีรูป/Media ติดมาด้วย ก็ส่งตามไปครับ
             if (bestMatch.type === 'image' && bestMatch.media) {
-                // รอสักนิดค่อยส่งรูป เพื่อความเนียน
-                setTimeout(() => fbService.sendImage(senderId, bestMatch.media), 1000);
+                await fbService.sendImage(senderId, bestMatch.media);
             }
         } else {
             console.log(`[Workflow] ไม่พบข้อมูลแม้จะขยายคำแล้ว -> บันทึก Unanswered Log`);
-            // ให้ AI ตอบแบบสุภาพว่าไม่ทราบ (หรือใช้ข้อความเดิมก็ได้)
-            await fbService.sendMessage(senderId, "ขออภัยค่ะ ไม่มีข้อมูลในส่วนนี้ ลองพิมพ์คำถามอื่นดูนะคะ หรือทิ้งข้อความไว้ให้แอดมินตรวจสอบได้เลยค่ะ");
+            await fbService.sendMessage(senderId, "ขออภัย ไม่มีข้อมูลในส่วนนี้ ฝากข้อความไว้ได้เลยค่ะ");
 
             // Log ลง Sheet เพื่อให้แอดมินมาตรวจสอบภายหลัง
             await sheetService.logUnanswered(messageText);
@@ -146,7 +142,7 @@ const processMessage = async (senderId, messageText) => {
 
     } catch (error) {
         console.error('[Workflow] เกิดข้อผิดพลาด:', error);
-        await fbService.sendMessage(senderId, "ขออภัย ระบบขัดข้องเล็กน้อย ทิ้งข้อความไว้ได้เลยนะคะ เดี๋ยวแอดมินมาตอบค่ะ");
+        await fbService.sendMessage(senderId, "ขออภัย ระบบขัดข้องเล็กน้อย ฝากข้อความไว้ได้เลยค่ะ");
     }
 };
 
