@@ -25,11 +25,26 @@ const processMessage = async (senderId, messageText) => {
         const category = 'KnowledgeBase'; // ชื่อ Sheet ใหม่ที่คุณต้องสร้าง
         console.log(`[Workflow] ใช้ชีตหลัก: ${category}`);
 
-        // 3. ค้นหาข้อมูลจาก Sheet (Retrieval)
-        const contextRows = await sheetService.searchSheet(category, messageText);
-        console.log(`[Workflow] พบข้อมูลที่เกี่ยวข้อง: ${contextRows.length} แถว`);
+        // 3. Rule-Based First: ค้นหา Keyword เป๊ะๆ ก่อน
+        const directMatches = await sheetService.findKeywordMatch(category, messageText);
 
-        // 4. สร้างคำตอบด้วย AI (Generation)
+        if (directMatches && directMatches.length > 0) {
+            console.log(`[Workflow] พบ Keyword ตรงเป๊ะจำนวน ${directMatches.length} รายการ! ตอบทันที`);
+
+            // รวมคำตอบจากทุก Keyword ที่เจอ
+            const combinedAnswer = directMatches
+                .map(match => match.answer)
+                .join('\n----------------\n'); // แยกคำตอบด้วยเส้นขีด หรือเว้นบรรทัด
+
+            await fbService.sendMessage(senderId, combinedAnswer);
+            return; // จบการทำงานทันที
+        }
+
+        // 4. ถ้าไม่เจอ Keyword เป๊ะๆ -> ให้ AI ช่วยตอบ (AI-Based Fallback)
+        console.log(`[Workflow] ไม่เจอ Keyword ตรงเป๊ะ -> ใช้ AI ช่วยตอบ`);
+        const contextRows = await sheetService.searchSheet(category, messageText);
+        console.log(`[Workflow] พบข้อมูลบริบทที่เกี่ยวข้อง: ${contextRows.length} แถว`);
+
         const answer = await aiService.generateAnswer(messageText, contextRows);
 
         // 5. ส่งคำตอบกลับ

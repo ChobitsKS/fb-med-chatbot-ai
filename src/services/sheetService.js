@@ -102,6 +102,19 @@ const searchSheet = async (category, userQuery) => {
     return Array.from(combinedResults).slice(0, 5);
 };
 
+/**
+ * ค้นหาข้อมูลที่ตรงกับ Keyword เป๊ะๆ
+ * @param {string} category - หมวดหมู่ที่จะค้นหา
+ * @param {string} userQuery - ข้อความของผู้ใช้
+ * @returns {Promise<Array>} - อาร์เรย์ของแถวข้อมูลที่ตรง
+ */
+const findKeywordMatch = async (category, userQuery) => {
+    const data = await getSheetData(category);
+    // Find ALL rows where keyword exists in userQuery
+    return data.filter(row => containsKeyword(userQuery, row.keyword));
+};
+
 module.exports = {
-    searchSheet
+    searchSheet,
+    findKeywordMatch
 };
