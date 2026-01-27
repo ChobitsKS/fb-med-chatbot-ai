@@ -121,20 +121,24 @@ const processMessage = async (senderId, messageText) => {
         const contextRows = await sheetService.searchSheet(category, expandedQuery);
         console.log(`[Workflow] พบข้อมูลบริบทที่เกี่ยวข้อง: ${contextRows.length} แถว`);
 
-        // 4.3 ตอบกลับทันที (ไม่ใช้ AI เรียบเรียงใหม่แล้ว เพื่อประหยัด Token)
+        // 4.3 ตอบกลับด้วย AI (Synthesized Answer)
         if (contextRows.length > 0) {
-            // เอาอันที่คะแนนสูงสุด (ตัวแรก) มาตอบเลย
-            const bestMatch = contextRows[0];
-            console.log(`[Workflow] ตอบด้วยข้อมูลจาก Sheet ทันที: "${bestMatch.answer}"`);
-            await fbService.sendMessage(senderId, bestMatch.answer);
+            console.log(`[Workflow] พบข้อมูล ${contextRows.length} แถว -> ส่งให้ AI สรุปคำตอบ`);
 
-            // ถ้ามีรูป/Media ติดมาด้วย ก็ส่งตามไปครับ
+            // เรียกใช้ AI โดยส่งข้อมูลที่เจอทั้งหมดเข้าไปเป็น Context
+            const aiResponse = await aiService.generateAnswer(messageText, contextRows);
+            await fbService.sendMessage(senderId, aiResponse);
+
+            // ถ้าแถวแรก (ที่ตรงที่สุด) มีรูปภาพ ก็ส่งรูปตามไปประกอบครับ
+            const bestMatch = contextRows[0];
             if (bestMatch.type === 'image' && bestMatch.media) {
-                await fbService.sendImage(senderId, bestMatch.media);
+                // รอสักนิดค่อยส่งรูป เพื่อความเนียน
+                setTimeout(() => fbService.sendImage(senderId, bestMatch.media), 1000);
             }
         } else {
             console.log(`[Workflow] ไม่พบข้อมูลแม้จะขยายคำแล้ว -> บันทึก Unanswered Log`);
-            await fbService.sendMessage(senderId, "ขออภัยค่ะ ไม่มีข้อมูลในส่วนนี้ ลองพิมพ์คำถามอื่นดูนะคะ");
+            // ให้ AI ตอบแบบสุภาพว่าไม่ทราบ (หรือใช้ข้อความเดิมก็ได้)
+            await fbService.sendMessage(senderId, "ขออภัยค่ะ ไม่มีข้อมูลในส่วนนี้ ลองพิมพ์คำถามอื่นดูนะคะ หรือทิ้งข้อความไว้ให้แอดมินตรวจสอบได้เลยค่ะ");
 
             // Log ลง Sheet เพื่อให้แอดมินมาตรวจสอบภายหลัง
             await sheetService.logUnanswered(messageText);
