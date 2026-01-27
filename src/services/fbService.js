@@ -12,10 +12,7 @@ const sendMessage = async (recipientId, text) => {
     try {
         await axios.post(`${FACEBOOK_API_URL}/me/messages`, {
             recipient: { id: recipientId },
-            message: {
-                text: text,
-                metadata: "bot_reply"
-            },
+            message: { text: text },
             access_token: config.fb.pageAccessToken
         }, {
             params: { access_token: config.fb.pageAccessToken }

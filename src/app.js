@@ -45,14 +45,13 @@ app.post('/webhook', (req, res) => {
                 }
 
                 // Handle Echo (Admin replied)
-                // ตรวจสอบว่าเป็นคนตอบจริงๆ หรือไม่ (ถ้าเป็น Bot ตอบ เราจะใส่ metadata="bot_reply" ไว้)
+                // ตรวจสอบว่าเป็นคนตอบจริงๆ หรือไม่ (ถ้าเป็น Bot ตอบ จะมี app_id ติดมาด้วย)
                 if (webhook_event.message && webhook_event.message.is_echo) {
-                    const metadata = webhook_event.message.metadata;
+                    const appId = webhook_event.message.app_id;
                     const recipientId = webhook_event.recipient.id;
 
-                    // ถ้า metadata ไม่ใช่ "bot_reply" แปลว่าคนอื่นตอบ (แอดมิน)
-                    if (metadata !== "bot_reply") {
-                        console.log(`[Handover] Admin reply detected for user ${recipientId}`);
+                    // ถ้าไม่มี app_id แปลว่าน่าจะเป็นคนตอบผ่าน Page Manager
+                    if (!appId) {
                         workflow.handlePageEcho(recipientId);
                     }
                 }

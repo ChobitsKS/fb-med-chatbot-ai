@@ -3,14 +3,55 @@ const config = require('../config');
 
 const groq = new Groq({ apiKey: config.groq.apiKey });
 
-const CHAT_CATEGORIES_CONFIG = []; // Deprecated: No more classification
-const CHAT_CATEGORIES = [];
+const CHAT_CATEGORIES = [
+    'ข้อมูลทั่วไปและสถานที่',
+    'หลักสูตรและสาขาที่เปิดสอน',
+    'การรับสมัครและเกณฑ์การคัดเลือก',
+    'การเรียนและกิจกรรมนักศึกษา',
+    'ค่าเทอมและทุนการศึกษา',
+    'การติดต่อและช่องทางติดตาม',
+    'คำถามที่พบบ่อย'
+];
 
-// ฟังก์ชันจัดหมวดหมู่ (ไม่ได้ใช้แล้ว แต่เก็บไว้เผื่ออนาคต หรือลบออกก็ได้)
+/**
+ * จัดหมวดหมู่ข้อความของผู้ใช้ (Classification)
+ * @param {string} userMessage 
+ * @returns {Promise<string>} ชื่อหมวดหมู่
+ */
 const classifyCategory = async (userMessage) => {
-    return 'KnowledgeBase'; // บังคับคืนค่าชื่อ Sheet หลักเลย
-};
+    try {
+        const completion = await groq.chat.completions.create({
+            messages: [
+                {
+                    role: 'system',
+                    content: `คุณคือ AI สำหรับจัดหมวดหมู่คำถาม จงวิเคราะห์ข้อความของผู้ใช้และเลือกหมวดหมู่ที่เหมาะสมที่สุดเพียง 1 หมวดจากรายการต่อไปนี้:
+${CHAT_CATEGORIES.join('\n')}
 
+คำตอบต้องเป็นชื่อหมวดหมู่เป๊ะๆ ห้ามมีคำอื่นปน ห้ามมีเครื่องหมายคำพูด
+ถ้าไม่แน่ใจให้เลือก "คำถามที่พบบ่อย"`
+                },
+                {
+                    role: 'user',
+                    content: userMessage
+                }
+            ],
+            model: config.groq.model,
+            temperature: 0.3,
+            max_tokens: 50,
+        });
+
+        const category = completion.choices[0]?.message?.content?.trim();
+        // Validate if result is in known list
+        if (CHAT_CATEGORIES.includes(category)) {
+            return category;
+        }
+        return 'คำถามที่พบบ่อย'; // Fallback
+
+    } catch (error) {
+        console.error('Error in AI Classification:', error);
+        return 'คำถามที่พบบ่อย'; // Fallback on error
+    }
+};
 
 /**
  * Generate answer based on context
