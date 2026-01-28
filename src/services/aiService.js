@@ -51,7 +51,7 @@ ${contextText}
                 }
             ],
             model: config.groq.model,
-            temperature: 1.0,
+            temperature: 2.0,
             max_tokens: 300,
         });
 
@@ -67,4 +67,5 @@ module.exports = {
     classifyCategory,
     generateAnswer
 };
+
 
